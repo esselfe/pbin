@@ -1,0 +1,11 @@
+[Unit]
+Description=Paste daemon
+After=network.target apache2.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/pbin
+
+[Install]
+WantedBy=multi-user.target
+Alias=pbin.service
