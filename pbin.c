@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <strings.h>
 #include <errno.h>
+#include <pthread.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,9 +13,57 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-char *pbin_version_string = "0.0.1";
+char *pbin_version_string = "0.0.2";
+
+void *DeleteStale(void *argp) {
+	DIR *d;
+	struct dirent *de;
+	struct statx st;
+	char *dirname = "/srv/files/tmp";
+	char fullname[1024];
+	char buffer[1028];
+	time_t t0;
+	while (1) {
+		d = opendir(dirname);
+		if (d == NULL) {
+			fprintf(stderr, "pbin error: Cannot open %s: %s\n", dirname,
+				strerror(errno));
+			sleep(60);
+			continue;
+		}
+
+		while (1) {
+			de = readdir(d);
+			if (de == NULL)
+				break;
+			else if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+				continue;
+
+			sprintf(fullname, "%s/%s", dirname, de->d_name);
+			if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
+				t0 = time(NULL);
+				if (st.stx_btime.tv_sec < t0 - 60*60*24) {
+					sprintf(buffer, "rm %s", fullname);
+					system(buffer);
+				}
+			}
+		}
+		
+		closedir(d);
+		sleep(15);
+	}
+	return NULL;
+}
 
 int main(int argc, char **argv) {
+	pthread_t thr;
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&thr, &attr, DeleteStale, NULL);
+	pthread_detach(thr);
+	pthread_attr_destroy(&attr);
+
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		fprintf(stderr, "pbin error: Cannot open socket: %s\n",
@@ -87,11 +135,11 @@ while (1) {
 
 	fputs(buffer, fw);
 	fclose(fw);
-	
-	// Change this to your server's address
+
 	sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
 	write(peer_sock, buffer, strlen(buffer));
 	close(peer_sock);
 }
 	close(sock);
 }
+

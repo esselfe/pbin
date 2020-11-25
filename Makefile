@@ -1,6 +1,6 @@
 
 CFLAGS = -std=c11 -Wall -Werror -D_GNU_SOURCE -O2
-LDFLAGS = 
+LDFLAGS = -pthread
 PROGNAME = pbin
 
 .PHONY: all clean
@@ -14,3 +14,4 @@ $(PROGNAME): pbin.c
 
 clean:
 	@rm -v $(PROGNAME) 2>/dev/null || true
+
