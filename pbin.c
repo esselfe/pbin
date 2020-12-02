@@ -13,7 +13,9 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-char *pbin_version_string = "0.0.2";
+char *pbin_version_string = "0.0.4";
+char *homedir = "/srv/files/tmp";
+char *log_filename = "/var/log/pbin.log";
 
 void *DeleteStale(void *argp) {
 	DIR *d;
@@ -55,7 +57,28 @@ void *DeleteStale(void *argp) {
 	return NULL;
 }
 
+char *GenUniqueFilename(void) {
+	char *name = malloc(6);
+	struct timeval tv0;
+	struct stat st;
+	while (1) {
+		gettimeofday(&tv0, NULL);
+		srand((unsigned int)tv0.tv_usec);
+		sprintf(name, "%04d", rand()%10000);
+		if (stat(name, &st) == -1)
+			break;
+	}
+
+	return name;
+}
+
 int main(int argc, char **argv) {
+	if (chdir(homedir) < 0) {
+		fprintf(stderr, "pbin error: Cannot change directory: %s\n",
+			strerror(errno));
+		return 1;
+	}
+
 	pthread_t thr;
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -102,19 +125,10 @@ while (1) {
 		return 1;
 	}
 
-	char filename[5], fullname[128];
-	struct timeval tv0;
-	gettimeofday(&tv0, NULL);
-	srand((unsigned int)tv0.tv_usec);
-	filename[0] = (rand()%10) + 48;
-	filename[1] = (rand()%10) + 48;
-	filename[2] = (rand()%10) + 48;
-	filename[3] = (rand()%10) + 48;
-	filename[4] = '\0';
-	sprintf(fullname, "/srv/files/tmp/%s", filename);
-	FILE *fw = fopen(fullname, "w");
+	char *filename = GenUniqueFilename();
+	FILE *fw = fopen(filename, "w");
 	if (fw == NULL) {
-		fprintf(stderr, "pbin error: Cannot open %s: %s\n", fullname,
+		fprintf(stderr, "pbin error: Cannot open %s: %s\n", filename,
 			strerror(errno));
 		close(sock);
 		return 1;
@@ -139,6 +153,27 @@ while (1) {
 	sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
 	write(peer_sock, buffer, strlen(buffer));
 	close(peer_sock);
+
+	fw = fopen(log_filename, "a+");
+	if (fw == NULL) {
+		fprintf(stderr, "pbin error: Cannot open %s: %s\n", log_filename,
+			strerror(errno));
+	}
+	else {
+		struct stat st;
+		stat(filename, &st);
+		time_t t0 = time(NULL);
+		struct tm *tm0 = localtime(&t0);
+		char buffer[1024];
+		memset(buffer, 0, 1024);
+		sprintf(buffer, "%02d%02d%02d-%02d%02d%02d %s %ld %s\n",
+			tm0->tm_year+1900-2000, tm0->tm_mon+1, tm0->tm_mday, tm0->tm_hour,
+			tm0->tm_min, tm0->tm_sec, filename, st.st_size, inet_ntoa(peer_addr.sin_addr));
+		fputs(buffer, fw);
+		fclose(fw);
+	}
+
+	free(filename);
 }
 	close(sock);
 }
