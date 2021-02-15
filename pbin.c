@@ -3,24 +3,22 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <ctype.h>
 #include <pthread.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 
-char *pbin_version_string = "0.0.7";
+char *pbin_version_string = "0.0.8";
 char *homedir = "/srv/files/tmp";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
-int break_read, reading, peer_sock, sock;
-struct sockaddr_in peer_addr;
-FILE *f_write;
+int sock, peer_sock;
 ssize_t bytes_read, bytes_read_total, bytes_read_total_prev;
 
 void *DeleteStale(void *argp) {
@@ -66,40 +64,6 @@ void *DeleteStale(void *argp) {
 	return NULL;
 }
 
-void *ReadData(void *argp) {
-	f_write = fopen(filename, "w");
-    if (f_write == NULL) {
-        fprintf(stderr, "pbin error: Cannot open %s: %s\n", filename,
-            strerror(errno));
-        close(sock);
-        return NULL;
-    }
-    char tbuffer[4096001];
-    while (1) {
-        memset(tbuffer, 0, 4096001);
-        errno = 0;
-        printf("reading...\n");
-        bytes_read = read(peer_sock, tbuffer, 4096);
-        printf("bytes_read: %ld\n", bytes_read);
-        if (bytes_read == -1) {
-            if (errno)
-                fprintf(stderr, "pbin error: Cannot read(): %s\n",
-                    strerror(errno));
-            break;;
-        }
-  		else if (bytes_read == 0)
-            break;
-		else
-			bytes_read_total += bytes_read;
-
-        fputs(tbuffer, f_write);
-		fflush(f_write);
-		sync();
-    }
-
-	return NULL;
-}
-
 char *GenUniqueFilename(void) {
 	char *name = malloc(6);
 	struct timeval tv0;
@@ -113,6 +77,31 @@ char *GenUniqueFilename(void) {
 	}
 
 	return name;
+}
+
+void *CheckEnd(void *argp) {
+	time_t t0, tprev = time(NULL);
+	char buffer[1024];
+	while (1) {
+		t0 = time(NULL);
+		if (bytes_read_total == bytes_read_total_prev) {
+			if (t0 >= tprev + 2) {
+				sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
+				write(peer_sock, buffer, strlen(buffer));
+				close(peer_sock);
+				close(sock);
+				break;
+			}
+		}
+		else {
+			tprev = t0;
+			bytes_read_total_prev = bytes_read_total;
+		}
+
+		sleep(1);
+	}
+
+	return NULL;
 }
 
 int main(int argc, char **argv) {
@@ -130,6 +119,7 @@ int main(int argc, char **argv) {
 	pthread_detach(thr);
 	pthread_attr_destroy(&attr);
 
+while (1) {
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		fprintf(stderr, "pbin error: Cannot open socket: %s\n",
@@ -149,7 +139,6 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-while (1) {
 	if (listen(sock, 1) < 0) {
 		fprintf(stderr, "pbin error: Cannot listen: %s\n",
 			strerror(errno));
@@ -157,6 +146,7 @@ while (1) {
 		return 1;
 	}
 
+	struct sockaddr_in peer_addr;
 	bzero(&addr, sizeof(peer_addr));
 	socklen_t peer_addr_size = sizeof(peer_addr);
 	peer_sock = accept(sock, (struct sockaddr *)&peer_addr, &peer_addr_size);
@@ -168,50 +158,51 @@ while (1) {
 	}
 
 	filename = GenUniqueFilename();
-/*	f_write = fopen(filename, "w");
-	if (f_write == NULL) {
+	FILE *fw = fopen(filename, "w");
+	if (fw == NULL) {
 		fprintf(stderr, "pbin error: Cannot open %s: %s\n", filename,
 			strerror(errno));
 		close(sock);
 		return 1;
 	}
-*/
+
 	pthread_t thr2;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&thr2, &attr, ReadData, NULL);
+	pthread_create(&thr2, &attr, CheckEnd, NULL);
 	pthread_detach(thr2);
 	pthread_attr_destroy(&attr);
 
-	time_t t1, tprev = time(NULL);
+	char buffer[4096001];
 	while (1) {
-		t1 = time(NULL);
-		if (bytes_read_total == bytes_read_total_prev) {
-			if (t1 >= tprev + 10) {
-				printf("thread canceled\n");
-				fclose(f_write);
-				pthread_cancel(thr2);
-				bytes_read_total = 0;
-				bytes_read_total_prev = 0;
-				break;
-			}
+		memset(buffer, 0, 4096001);
+		errno = 0;
+		printf("reading...\n");
+		bytes_read = read(peer_sock, buffer, 1096);
+		printf("bytes_read: %ld\n", bytes_read);
+		if (bytes_read == -1) {
+			if (errno)
+				fprintf(stderr, "pbin error: Cannot read(): %s\n",
+					strerror(errno));
+			close(sock);
+			break;;
 		}
-		else {
-			tprev = t1;
-			bytes_read_total_prev = bytes_read_total;
-		}
-		usleep(250000);
-	}
+		else if (bytes_read == 0)
+			break;
+		else
+			bytes_read_total += bytes_read;
 
+		fputs(buffer, fw);
+	}
+	fclose(fw);
 	printf("loop done\n");
 
-	char buffer[1024];
-	sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
-	write(peer_sock, buffer, strlen(buffer));
-	close(peer_sock);
+	//sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
+	//write(peer_sock, buffer, strlen(buffer));
+	//close(peer_sock);
 
-	f_write = fopen(log_filename, "a+");
-	if (f_write == NULL) {
+	fw = fopen(log_filename, "a+");
+	if (fw == NULL) {
 		fprintf(stderr, "pbin error: Cannot open %s: %s\n", log_filename,
 			strerror(errno));
 	}
@@ -225,12 +216,12 @@ while (1) {
 		sprintf(buffer, "%02d%02d%02d-%02d%02d%02d %s %ld %s\n",
 			tm0->tm_year+1900-2000, tm0->tm_mon+1, tm0->tm_mday, tm0->tm_hour,
 			tm0->tm_min, tm0->tm_sec, filename, st.st_size, inet_ntoa(peer_addr.sin_addr));
-		fputs(buffer, f_write);
-		fclose(f_write);
+		fputs(buffer, fw);
+		fclose(fw);
 	}
 
 	free(filename);
-}
 	close(sock);
+}
 }
 

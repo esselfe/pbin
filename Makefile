@@ -10,7 +10,7 @@ default: all
 all: $(PROGNAME)
 
 $(PROGNAME): pbin.c
-	gcc $(CFLAGS) $(LDFLAGS) pbin.c -o $(PROGNAME)
+	gcc $(CFLAGS) pbin.c $(LDFLAGS) -o $(PROGNAME)
 
 clean:
 	@rm -v $(PROGNAME) 2>/dev/null || true
