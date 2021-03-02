@@ -50,7 +50,7 @@ void *DeleteStale(void *argp) {
 				sprintf(fullname, "%s/%s", dirname, de->d_name);
 				if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
 					t0 = time(NULL);
-					if (st.stx_btime.tv_sec < t0 - 60*60*24) {
+					if (st.stx_btime.tv_sec < t0 - 60*60*24*7) {
 						sprintf(buffer, "rm %s", fullname);
 						system(buffer);
 					}
@@ -177,9 +177,9 @@ while (1) {
 	while (1) {
 		memset(buffer, 0, 4096001);
 		errno = 0;
-		printf("reading...\n");
+		//printf("reading...\n");
 		bytes_read = read(peer_sock, buffer, 1096);
-		printf("bytes_read: %ld\n", bytes_read);
+		//printf("bytes_read: %ld\n", bytes_read);
 		if (bytes_read == -1) {
 			if (errno)
 				fprintf(stderr, "pbin error: Cannot read(): %s\n",
@@ -195,7 +195,7 @@ while (1) {
 		fputs(buffer, fw);
 	}
 	fclose(fw);
-	printf("loop done\n");
+	//printf("loop done\n");
 
 	//sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
 	//write(peer_sock, buffer, strlen(buffer));
@@ -216,6 +216,7 @@ while (1) {
 		sprintf(buffer, "%02d%02d%02d-%02d%02d%02d %s %ld %s\n",
 			tm0->tm_year+1900-2000, tm0->tm_mon+1, tm0->tm_mday, tm0->tm_hour,
 			tm0->tm_min, tm0->tm_sec, filename, st.st_size, inet_ntoa(peer_addr.sin_addr));
+		printf("%s", buffer);
 		fputs(buffer, fw);
 		fclose(fw);
 	}
