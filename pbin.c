@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 
 char *pbin_version_string = "0.0.8";
-char *homedir = "/srv/files/tmp";
+char *homedir = "/srv/files/paste";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
 int sock, peer_sock;
@@ -25,7 +25,7 @@ void *DeleteStale(void *argp) {
 	DIR *d;
 	struct dirent *de;
 	struct statx st;
-	char *dirname = "/srv/files/tmp";
+	char *dirname = "/srv/files/paste";
 	char fullname[1024];
 	char buffer[1028];
 	time_t t0;
