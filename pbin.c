@@ -86,10 +86,9 @@ void *CheckEnd(void *argp) {
 		t0 = time(NULL);
 		if (bytes_read_total == bytes_read_total_prev) {
 			if (t0 >= tprev + 2) {
-				sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
+				sprintf(buffer, "https://esselfe.ca/paste/%s\n", filename);
 				write(peer_sock, buffer, strlen(buffer));
-				close(peer_sock);
-				close(sock);
+				shutdown(peer_sock, 2);
 				break;
 			}
 		}
@@ -119,7 +118,6 @@ int main(int argc, char **argv) {
 	pthread_detach(thr);
 	pthread_attr_destroy(&attr);
 
-while (1) {
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		fprintf(stderr, "pbin error: Cannot open socket: %s\n",
@@ -139,6 +137,7 @@ while (1) {
 		return 1;
 	}
 
+while (1) {
 	if (listen(sock, 1) < 0) {
 		fprintf(stderr, "pbin error: Cannot listen: %s\n",
 			strerror(errno));
@@ -158,6 +157,7 @@ while (1) {
 	}
 
 	filename = GenUniqueFilename();
+
 	FILE *fw = fopen(filename, "w");
 	if (fw == NULL) {
 		fprintf(stderr, "pbin error: Cannot open %s: %s\n", filename,
@@ -177,9 +177,7 @@ while (1) {
 	while (1) {
 		memset(buffer, 0, 4096001);
 		errno = 0;
-		//printf("reading...\n");
 		bytes_read = read(peer_sock, buffer, 1096);
-		//printf("bytes_read: %ld\n", bytes_read);
 		if (bytes_read == -1) {
 			if (errno)
 				fprintf(stderr, "pbin error: Cannot read(): %s\n",
@@ -195,11 +193,6 @@ while (1) {
 		fputs(buffer, fw);
 	}
 	fclose(fw);
-	//printf("loop done\n");
-
-	//sprintf(buffer, "https://esselfe.ca/tmp/%s\n", filename);
-	//write(peer_sock, buffer, strlen(buffer));
-	//close(peer_sock);
 
 	fw = fopen(log_filename, "a+");
 	if (fw == NULL) {
@@ -222,7 +215,6 @@ while (1) {
 	}
 
 	free(filename);
-	close(sock);
 }
 }
 
