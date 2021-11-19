@@ -65,7 +65,7 @@ void *DeleteStale(void *argp) {
 }
 
 char *GenUniqueFilename(void) {
-	char *name = malloc(6);
+	char *name = malloc(12);
 	struct timeval tv0;
 	struct stat st;
 	while (1) {
