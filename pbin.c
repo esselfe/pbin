@@ -14,7 +14,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-char *pbin_version_string = "0.0.8";
+char *pbin_version_string = "0.0.9";
 char *homedir = "/srv/files/paste";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
@@ -71,7 +71,7 @@ char *GenUniqueFilename(void) {
 	while (1) {
 		gettimeofday(&tv0, NULL);
 		srand((unsigned int)tv0.tv_usec);
-		sprintf(name, "%04d", rand()%10000);
+		sprintf(name, "%06d.txt", rand()%1000000);
 		if (stat(name, &st) == -1)
 			break;
 	}
