@@ -27,7 +27,7 @@ void *DeleteStale(void *argp) {
 	struct statx st;
 	char *dirname = "/srv/files/paste";
 	char fullname[1024];
-	char buffer[1028];
+	char buffer[1030];
 	time_t t0;
 	while (1) {
 		d = opendir(dirname);
@@ -45,13 +45,14 @@ void *DeleteStale(void *argp) {
 			else if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
 				continue;
 
-			if (strlen(de->d_name) == 4 && isdigit(de->d_name[0]) && isdigit(de->d_name[1]) &&
-					isdigit(de->d_name[2]) && isdigit(de->d_name[3])) {
+			if (strlen(de->d_name) == 10 && isdigit(de->d_name[0]) && isdigit(de->d_name[1]) &&
+					isdigit(de->d_name[2]) && isdigit(de->d_name[3]) && isdigit(de->d_name[4]) &&
+                    isdigit(de->d_name[5]) && strncmp(de->d_name + 6, ".txt", 4) == 0) {
 				sprintf(fullname, "%s/%s", dirname, de->d_name);
 				if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
 					t0 = time(NULL);
 					if (st.stx_btime.tv_sec < t0 - 60*60*24*7) {
-						sprintf(buffer, "rm %s", fullname);
+						sprintf(buffer, "rm -v %s", fullname);
 						system(buffer);
 					}
 				}
@@ -59,7 +60,7 @@ void *DeleteStale(void *argp) {
 		}
 		
 		closedir(d);
-		sleep(15);
+		sleep(10);
 	}
 	return NULL;
 }
