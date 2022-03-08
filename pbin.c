@@ -14,7 +14,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-char *pbin_version_string = "0.0.9";
+char *pbin_version_string = "0.0.10";
+char *site_url = "https://esselfe.ca/paste/";
 char *homedir = "/srv/files/paste";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
@@ -47,7 +48,7 @@ void *DeleteStale(void *argp) {
 
 			if (strlen(de->d_name) == 10 && isdigit(de->d_name[0]) && isdigit(de->d_name[1]) &&
 					isdigit(de->d_name[2]) && isdigit(de->d_name[3]) && isdigit(de->d_name[4]) &&
-                    isdigit(de->d_name[5]) && strncmp(de->d_name + 6, ".txt", 4) == 0) {
+					isdigit(de->d_name[5]) && strncmp(de->d_name + 6, ".txt", 4) == 0) {
 				sprintf(fullname, "%s/%s", dirname, de->d_name);
 				if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
 					t0 = time(NULL);
@@ -87,7 +88,7 @@ void *CheckEnd(void *argp) {
 		t0 = time(NULL);
 		if (bytes_read_total == bytes_read_total_prev) {
 			if (t0 >= tprev + 2) {
-				sprintf(buffer, "https://esselfe.ca/paste/%s\n", filename);
+				sprintf(buffer, "%s%s\n", site_url, filename);
 				write(peer_sock, buffer, strlen(buffer));
 				shutdown(peer_sock, 2);
 				break;
@@ -153,8 +154,7 @@ while (1) {
 	if (peer_sock < 0) {
 		fprintf(stderr, "pbin error: Cannot accept connection: %s\n",
 			strerror(errno));
-		close(sock);
-		return 1;
+		continue;
 	}
 
 	filename = GenUniqueFilename();
