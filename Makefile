@@ -1,5 +1,5 @@
 
-CFLAGS = -std=c11 -Wall -Werror -D_GNU_SOURCE -O2
+CFLAGS = -std=c11 -Wall -D_GNU_SOURCE -O2
 LDFLAGS = -pthread
 PROGNAME = pbin
 
