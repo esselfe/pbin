@@ -188,7 +188,7 @@ while (1) {
 				fprintf(stderr, "pbin error: Cannot read(): %s\n",
 					strerror(errno));
 			close(sock);
-			break;;
+			break;
 		}
 		else if (bytes_read == 0)
 			break;
