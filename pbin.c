@@ -208,13 +208,15 @@ while (1) {
 		struct stat st;
 		stat(filename, &st);
 		time_t t0 = time(NULL);
-		struct tm *tm0 = localtime(&t0);
+		struct tm *tm0 = malloc(sizeof(struct tm));
+		localtime_r(&t0, tm0);
 		char buffer[1024];
 		memset(buffer, 0, 1024);
 		sprintf(buffer, "%02d%02d%02d-%02d%02d%02d %s %ld %s\n",
 			tm0->tm_year+1900-2000, tm0->tm_mon+1, tm0->tm_mday, tm0->tm_hour,
 			tm0->tm_min, tm0->tm_sec, filename, st.st_size,
 			inet_ntoa(peer_addr.sin_addr));
+		free(tm0);
 		printf("%s", buffer);
 		fputs(buffer, fw);
 		fclose(fw);
