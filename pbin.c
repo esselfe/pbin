@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 	}
 
 	struct sockaddr_in addr;
-	bzero(&addr, sizeof(addr));
+	memset(&addr, 0, sizeof(addr));
 	addr.sin_addr.s_addr = inet_addr("0.0.0.0");
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(9999);
@@ -152,7 +152,7 @@ while (1) {
 	}
 
 	struct sockaddr_in peer_addr;
-	bzero(&peer_addr, sizeof(peer_addr));
+	memset(&peer_addr, 0, sizeof(peer_addr));
 	socklen_t peer_addr_size = sizeof(peer_addr);
 	peer_sock = accept(sock, (struct sockaddr *)&peer_addr, &peer_addr_size);
 	if (peer_sock < 0) {
