@@ -19,8 +19,11 @@ char *site_url = "https://esselfe.ca/paste/";
 char *homedir = "/srv/files/paste";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
-int sock, peer_sock;
-ssize_t bytes_read, bytes_read_total, bytes_read_total_prev;
+int sock;
+int peer_sock;
+ssize_t bytes_read;
+ssize_t bytes_read_total;
+ssize_t bytes_read_total_prev;
 
 void *DeleteStale(void *argp) {
 	DIR *d;
@@ -82,7 +85,8 @@ char *GenUniqueFilename(void) {
 }
 
 void *CheckEnd(void *argp) {
-	time_t t0, tprev = time(NULL);
+	time_t t0;
+	time_t tprev = time(NULL);
 	char buffer[1024];
 	while (1) {
 		t0 = time(NULL);
