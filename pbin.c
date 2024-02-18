@@ -31,7 +31,6 @@ void *DeleteStale(void *argp) {
 	struct statx st;
 	char *dirname = "/srv/files/paste";
 	char fullname[1024];
-	char buffer[1030];
 	time_t t0;
 	while (1) {
 		d = opendir(dirname);
@@ -55,10 +54,8 @@ void *DeleteStale(void *argp) {
 				sprintf(fullname, "%s/%s", dirname, de->d_name);
 				if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
 					t0 = time(NULL);
-					if (st.stx_btime.tv_sec < t0 - 60*60*24*7) {
-						sprintf(buffer, "rm -v %s", fullname);
-						system(buffer);
-					}
+					if (st.stx_btime.tv_sec < t0 - 60*60*24*7)
+						unlink(fullname);
 				}
 			}
 		}
