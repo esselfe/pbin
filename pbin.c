@@ -15,7 +15,9 @@
 #include <arpa/inet.h>
 
 char *pbin_version_string = "0.0.10";
-char *site_url = "https://esselfe.ca/paste/";
+// Base part of the URL returned to the user
+char *site_url = "https://example.com/paste/";
+// Local storage location of paste files
 char *homedir = "/srv/files/paste";
 char *log_filename = "/var/log/pbin.log";
 char *filename;
@@ -24,21 +26,20 @@ int peer_sock;
 ssize_t bytes_read;
 ssize_t bytes_read_total;
 ssize_t bytes_read_total_prev;
+unsigned int paste_size_max = 1000000;
 
 void *DeleteStale(void *argp) {
 	DIR *d;
 	struct dirent *de;
 	struct statx st;
-	char *dirname = "/srv/files/paste";
 	char fullname[1024];
 	time_t t0;
 	while (1) {
-		d = opendir(dirname);
+		d = opendir(homedir);
 		if (d == NULL) {
-			fprintf(stderr, "pbin error: Cannot open %s: %s\n", dirname,
-				strerror(errno));
-			sleep(60);
-			continue;
+			fprintf(stderr, "pbin error: Cannot open %s: %s\n",
+				homedir, strerror(errno));
+			exit(1);
 		}
 
 		while (1) {
@@ -51,11 +52,15 @@ void *DeleteStale(void *argp) {
 			if (strlen(de->d_name) == 10 && isdigit(de->d_name[0]) && isdigit(de->d_name[1]) &&
 					isdigit(de->d_name[2]) && isdigit(de->d_name[3]) && isdigit(de->d_name[4]) &&
 					isdigit(de->d_name[5]) && strncmp(de->d_name + 6, ".txt", 4) == 0) {
-				sprintf(fullname, "%s/%s", dirname, de->d_name);
+				sprintf(fullname, "%s/%s", homedir, de->d_name);
 				if (statx(0, fullname, 0, STATX_BTIME, &st) > -1) {
 					t0 = time(NULL);
 					if (st.stx_btime.tv_sec < t0 - 60*60*24*7)
-						unlink(fullname);
+						if (unlink(fullname) < 0) {
+							fprintf(stderr,
+							  "pbin error: Cannot unlink() %s: %s\n",
+							  fullname, strerror(errno));
+						}
 				}
 			}
 		}
@@ -85,10 +90,11 @@ void *CheckEnd(void *argp) {
 	time_t t0;
 	time_t tprev = time(NULL);
 	char buffer[1024];
+	bytes_read_total_prev = 0;
 	while (1) {
 		t0 = time(NULL);
 		if (bytes_read_total == bytes_read_total_prev) {
-			if (t0 >= tprev + 2) {
+			if (t0 >= tprev + 2 || bytes_read_total > paste_size_max) {
 				sprintf(buffer, "%s%s\n", site_url, filename);
 				write(peer_sock, buffer, strlen(buffer));
 				shutdown(peer_sock, 2);
